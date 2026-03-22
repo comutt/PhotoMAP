@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minimal Memory Map</title>
     
+    <!-- 라이브러리 고정 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -15,42 +16,48 @@
 
     <style>
         :root { --primary: #000000; --danger: #ff4757; --shadow: 0 10px 30px rgba(0,0,0,0.1); --radius: 24px; }
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: white; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: white; font-family: -apple-system, sans-serif; }
         
         #map { width: 100%; height: 100%; background: white; position: absolute; top: 0; left: 0; }
         .leaflet-tile-container { filter: grayscale(1) brightness(1.05); }
 
-        /* --- 로딩 스피너 --- */
-        #global-loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 11000; display: none; align-items: center; justify-content: center; flex-direction: column; }
-        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #000; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 10px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
         /* --- 로그인 화면 --- */
         #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 10000; display: flex; align-items: center; justify-content: center; }
         .login-box { width: 85%; max-width: 320px; text-align: center; padding: 40px 20px; border-radius: 30px; box-shadow: var(--shadow); }
-        .login-box h2 { font-weight: 800; margin-bottom: 10px; font-size: 24px; color: #000; }
-        .google-login-btn { width: 100%; padding: 14px; background: white; border: 1px solid #ddd; border-radius: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 25px; font-size: 15px; -webkit-appearance: none; }
+        .login-box h2 { font-weight: 800; margin-bottom: 10px; font-size: 24px; }
+        .google-login-btn { width: 100%; padding: 14px; background: white; border: 1px solid #ddd; border-radius: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 25px; font-size: 15px; }
+        #login-status { margin-top: 15px; font-size: 12px; color: #888; }
 
-        /* --- 상단 검색바 --- */
-        .top-search-bar { position: fixed; top: 20px; left: 20px; z-index: 1000; display: flex; align-items: center; background: white; height: 50px; width: 50px; border-radius: 25px; box-shadow: var(--shadow); overflow: hidden; transition: 0.4s cubic-bezier(0.2, 1, 0.3, 1); border: 1px solid #eee; }
+        /* --- 팝업 UI --- */
+        .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: var(--shadow); padding: 0; overflow: hidden; }
+        .leaflet-popup-content { margin: 0; width: 220px !important; }
+        .popup-container { padding: 20px 15px 15px 15px; position: relative; }
+        .popup-city { font-weight: 800; font-size: 15px; margin-bottom: 5px; display: block; padding-right: 25px; }
+        .popup-memo { font-size: 13px; color: #555; line-height: 1.4; margin: 8px 0; white-space: pre-wrap; }
+        .popup-img { width: 100%; border-radius: 10px; margin-top: 5px; display: block; border: 1px solid #f0f0f0; }
+        .popup-links { margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .link-item { display: flex; align-items: center; gap: 8px; font-size: 11px; text-decoration: none; color: #777; }
+        .edit-pencil { position: absolute; top: 18px; right: 15px; cursor: pointer; width: 24px; height: 24px; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .edit-pencil svg { width: 18px; height: 18px; fill: none; stroke: #000; stroke-width: 2.2; }
+
+        /* --- 메인 버튼들 --- */
+        .top-search-bar { position: fixed; top: 20px; left: 20px; z-index: 1000; display: flex; align-items: center; background: white; height: 50px; width: 50px; border-radius: 25px; box-shadow: var(--shadow); overflow: hidden; transition: 0.4s; border: 1px solid #eee; }
         .top-search-bar:hover, .top-search-bar:focus-within { width: calc(100% - 100px); max-width: 300px; }
         .search-icon-box { min-width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .search-icon-box svg { width: 20px; height: 20px; stroke: #000; stroke-width: 2.5; fill: none; }
-        .top-search-bar input { width: 100%; border: none; outline: none; font-size: 15px; opacity: 0; padding-right: 15px; background: transparent; }
+        .top-search-bar input { width: 100%; border: none; outline: none; font-size: 15px; opacity: 0; padding-right: 15px; }
         .top-search-bar:hover input, .top-search-bar:focus-within input { opacity: 1; }
-
-        /* --- 하단 버튼 --- */
         .controls-zoom { position: fixed; bottom: 25px; left: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
-        .btn-circle { width: 38px; height: 38px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; font-size: 18px; font-weight: bold; }
-        .btn-add { position: fixed; bottom: 25px; right: 20px; width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: none; }
+        .btn-circle { width: 38px; height: 38px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; font-size: 18px; }
+        .btn-add { position: fixed; bottom: 25px; right: 20px; width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
 
-        /* --- 필터링 (우측 상단) --- */
+        /* --- 필터링 --- */
         .filter-wrapper { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; align-items: center; }
         .filter-main-btn { width: 50px; height: 50px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; border: 1px solid #eee; cursor: pointer; }
         .filter-main-btn svg { width: 20px; height: 20px; stroke: #000; stroke-width: 2.2; fill: none; }
         .filter-menu { display: flex; flex-direction: column; gap: 10px; padding: 12px 0; background: white; border-radius: 25px; box-shadow: var(--shadow); border: 1px solid #eee; visibility: hidden; opacity: 0; transform: translateY(-10px); transition: 0.3s; margin-top: 10px; }
         .filter-wrapper:hover .filter-menu { visibility: visible; opacity: 1; transform: translateY(0); }
-        .filter-dot { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; margin: 0 16px; flex-shrink: 0; }
+        .filter-dot { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; margin: 0 16px; }
         .filter-dot.off { opacity: 0.2; transform: scale(0.8); }
         .logout-btn { width: 50px; height: 50px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #eee; margin-top: 10px; }
         .logout-btn svg { width: 18px; height: 18px; stroke: #ff4757; stroke-width: 2.5; fill: none; }
@@ -63,8 +70,7 @@
         .tab { padding: 10px 0; color: #bbb; font-weight: 800; cursor: pointer; font-size: 14px; position: relative; }
         .tab.active { color: var(--primary); }
         .tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: var(--primary); }
-        
-        .input-field { width: 100%; padding: 14px; border: 1.5px solid #eee; border-radius: 14px; box-sizing: border-box; font-size: 14px; outline: none; margin-bottom: 12px; -webkit-appearance: none; }
+        .input-field { width: 100%; padding: 14px; border: 1.5px solid #eee; border-radius: 14px; box-sizing: border-box; font-size: 14px; outline: none; margin-bottom: 12px; }
         .autocomplete-container { position: absolute; top: 120px; left: 25px; width: calc(100% - 50px); background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 2100; max-height: 150px; overflow-y: auto; display: none; border: 1px solid #f0f0f0; }
         .autocomplete-item { padding: 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f9f9f9; }
         .file-upload-section { background: #fdfdfd; border: 1.5px dashed #ccc; border-radius: 14px; padding: 15px; text-align: center; cursor: pointer; margin-bottom: 12px; font-size: 12px; color: #888; }
@@ -72,76 +78,50 @@
         .color-row { display: flex; justify-content: space-between; flex-wrap: nowrap; gap: 4px; margin-bottom: 20px; }
         .color-circle { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2.5px solid transparent; flex-shrink: 0; }
         .color-circle.active { border-color: var(--primary); transform: scale(1.1); }
-        .btn-save { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 16px; font-weight: bold; font-size: 16px; cursor: pointer; -webkit-appearance: none; }
+        .btn-save { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 16px; font-weight: bold; font-size: 16px; cursor: pointer; }
         .btn-delete { width: 100%; padding: 10px; background: transparent; color: var(--danger); border: none; font-size: 13px; font-weight: bold; cursor: pointer; text-decoration: underline; margin-top: 8px; }
-
-        /* --- 팝업 내부 --- */
-        .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: var(--shadow); padding: 0; overflow: hidden; }
-        .leaflet-popup-content { margin: 0; width: 220px !important; }
-        .popup-container { padding: 20px 15px 15px 15px; position: relative; }
-        .popup-city { font-weight: 800; font-size: 15px; margin-bottom: 5px; display: block; padding-right: 25px; }
-        .popup-memo { font-size: 13px; color: #555; line-height: 1.4; margin: 8px 0; white-space: pre-wrap; }
-        .popup-img { width: 100%; border-radius: 10px; margin-top: 5px; display: block; border: 1px solid #f0f0f0; pointer-events: none; }
-        .popup-links { margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-        .link-item { display: flex; align-items: center; gap: 8px; font-size: 11px; text-decoration: none; color: #777; }
-        .edit-pencil { position: absolute; top: 18px; right: 15px; cursor: pointer; width: 22px; height: 22px; z-index: 100; display: flex; align-items: center; justify-content: center; }
-        .edit-pencil svg { width: 18px; height: 18px; fill: none; stroke: #000; stroke-width: 2.2; pointer-events: none; }
     </style>
 </head>
 <body>
 
-<div id="global-loader"><div class="spinner"></div><span id="loader-text">처리 중...</span></div>
-
+<!-- 로그인 오버레이 -->
 <div id="login-overlay">
     <div class="login-box">
         <h2>Memory Map</h2>
-        <p>나만의 기록을 시작해보세요.</p>
         <button class="google-login-btn" onclick="handleGoogleLogin()">
-            <!-- SVG Google Icon -->
-            <svg class="google-icon" width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.49h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.91a8.78 8.78 0 0 0 2.69-6.62z" fill="#4285F4"/><path d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.8.54-1.83.85-3.05.85-2.35 0-4.33-1.58-5.04-3.71H.94v2.33A8.99 8.99 0 0 0 9 18z" fill="#34A853"/><path d="M3.96 10.71a5.41 5.41 0 0 1 0-3.42V4.96H.94a8.99 8.99 0 0 0 0 8.08l3.02-2.33z" fill="#FBBC05"/><path d="M9 3.58c1.32 0 2.5.45 3.44 1.35L15 2.47C13.46.99 11.43 0 9 0 5.48 0 2.44 2.02.94 4.96L3.96 7.29C4.67 5.16 6.65 3.58 9 3.58z" fill="#EA4335"/></svg>
+            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
             Google 계정으로 로그인
         </button>
+        <div id="login-status">대기 중...</div>
     </div>
 </div>
 
 <div id="map"></div>
 
+<!-- 메인 UI 동일 -->
 <div class="top-search-bar">
     <div class="search-icon-box"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></div>
     <input type="text" id="topInput" placeholder="도시 검색..." onkeypress="if(event.keyCode==13) globalSearch()">
 </div>
-
 <div class="filter-wrapper">
-    <div class="filter-main-btn" onclick="resetFilter()" title="모두 켜기"><svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg></div>
+    <div class="filter-main-btn" onclick="resetFilter()"><svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg></div>
     <div class="filter-menu" id="filterMenu"></div>
-    <div class="logout-btn" onclick="handleLogout()" title="로그아웃"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></div>
+    <div class="logout-btn" onclick="handleLogout()"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></div>
 </div>
-
-<div class="controls-zoom">
-    <button class="btn-circle" onclick="map.zoomIn()">+</button>
-    <button class="btn-circle" onclick="map.zoomOut()">−</button>
-</div>
+<div class="controls-zoom"><button class="btn-circle" onclick="map.zoomIn()">+</button><button class="btn-circle" onclick="map.zoomOut()">−</button></div>
 <div class="btn-add" onclick="openModal(false)">+</div>
-
 <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
 <div class="modal" id="modal">
     <div class="modal-header" id="modalTitle">📍 핀 추가</div>
-    <div class="modal-tabs" id="modalTabs">
-        <div class="tab active" id="tab0Btn" onclick="setTab(0)">정보</div>
-        <div class="tab" id="tab1Btn" onclick="setTab(1)">링크</div>
-    </div>
+    <div class="modal-tabs" id="modalTabs"><div class="tab active" id="tab0Btn" onclick="setTab(0)">정보</div><div class="tab" id="tab1Btn" onclick="setTab(1)">링크</div></div>
     <div id="tab0">
-        <input type="text" id="cityInput" class="input-field" placeholder="도시명 검색" autocomplete="off">
-        <div id="autocomplete" class="autocomplete-container"></div>
+        <input type="text" id="cityInput" class="input-field" placeholder="도시명 검색" autocomplete="off"><div id="autocomplete" class="autocomplete-container"></div>
         <div class="file-upload-section" onclick="document.getElementById('fileInput').click()">🖼️ 사진 선택<img id="preview-img"></div>
         <input type="file" id="fileInput" hidden accept="image/*">
         <textarea id="memo" class="input-field" style="height: 80px; resize: none;" placeholder="메모를 입력하세요..."></textarea>
     </div>
     <div id="tab1" style="display:none;">
-        <input type="text" id="linkIG" class="input-field" placeholder="Instagram URL">
-        <input type="text" id="linkYT" class="input-field" placeholder="YouTube URL">
-        <input type="text" id="linkGMap" class="input-field" placeholder="Google Maps URL">
-        <input type="text" id="linkWEB" class="input-field" placeholder="Website URL">
+        <input type="text" id="linkIG" class="input-field" placeholder="Instagram URL"><input type="text" id="linkYT" class="input-field" placeholder="YouTube URL"><input type="text" id="linkGMap" class="input-field" placeholder="Google Maps URL"><input type="text" id="linkWEB" class="input-field" placeholder="Website URL">
     </div>
     <div class="color-row" id="palette"></div>
     <button class="btn-save" id="saveBtn" onclick="savePin()">저장하기</button>
@@ -163,22 +143,36 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth(), provider = new firebase.auth.GoogleAuthProvider();
 
-    // --- 2. 로그인 제어 (모바일 대응) ---
-    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    // --- 2. [초강력] 로그인 제어 (팝업 방식 + 즉각 차단 해제) ---
+    function hideLogin() {
+        document.getElementById('login-overlay').style.display = 'none';
+    }
+
+    // A. 로그인 상태 변화 감지
     auth.onAuthStateChanged(user => {
         if (user) {
-            document.getElementById('login-overlay').style.display = 'none';
+            console.log("Auth Success");
+            hideLogin();
             loadPins();
         } else {
             document.getElementById('login-overlay').style.display = 'flex';
         }
     });
 
-    function handleGoogleLogin() { auth.signInWithRedirect(provider); }
-    auth.getRedirectResult().then(res => { if(res.user) document.getElementById('login-overlay').style.display = 'none'; });
-    function handleLogout() { if(confirm("로그아웃 하시겠습니까?")) auth.signOut().then(() => location.reload()); }
+    // B. 구글 로그인 실행 (팝업 방식)
+    function handleGoogleLogin() {
+        document.getElementById('login-status').innerText = "인증 창 여는 중...";
+        auth.signInWithPopup(provider).then(res => {
+            if(res.user) hideLogin(); // 팝업 성공 즉시 창 닫기
+        }).catch(err => {
+            console.error("Popup error, trying redirect:", err);
+            auth.signInWithRedirect(provider); // 팝업 막히면 리다이렉트 시도
+        });
+    }
 
-    // --- 3. 지도 설정 ---
+    function handleLogout() { if(confirm("로그아웃?")) auth.signOut().then(() => location.reload()); }
+
+    // --- 3. 지도 및 기능 (기존 로직 동일) ---
     const map = L.map('map', { zoomControl: false, worldCopyJump: true, maxBounds: [[-75, -Infinity], [85, Infinity]], minZoom: 2 }).setView([25, 160], 3);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png').addTo(map);
 
@@ -191,20 +185,18 @@
         fDot.onclick = () => { if(activeFilters.has(c)) activeFilters.delete(c); else activeFilters.add(c); fDot.classList.toggle('off'); applyFilter(); };
         filterMenu.appendChild(fDot);
         const pDot = document.createElement('div'); pDot.className = 'color-circle' + (c === currentColor ? ' active' : '');
-        pDot.style.background = c; pDot.setAttribute('data-color', c); pDot.onclick = () => selectColor(c, pDot);
-        palette.appendChild(pDot);
+        pDot.style.background = c; pDot.setAttribute('data-color', c); pDot.onclick = () => selectColor(c, pDot); palette.appendChild(pDot);
     });
 
     map.on('click', () => markers.forEach(m => { m.isSticky = false; m.closePopup(); }));
 
-    // --- 4. 데이터 및 핀 로직 ---
     function loadPins() {
-        db.ref('pins').on('value', (snapshot) => {
+        db.ref('pins').on('value', snapshot => {
             markers.forEach(m => map.removeLayer(m)); markers = [];
             const data = snapshot.val(); if(!data) return;
             for (let key in data) {
                 const p = data[key];
-                const marker = L.circleMarker(p.coords, { radius: 9, fillColor: p.color, color: "#fff", weight: 2.5, fillOpacity: 1 }).addTo(map);
+                const marker = L.circleMarker(p.coords, { radius: 8, fillColor: p.color, color: "#fff", weight: 2, fillOpacity: 1 }).addTo(map);
                 marker.dbKey = key; marker.city = p.city; marker.memo = p.memo; marker.img = p.img; marker.coords = p.coords; marker.color = p.color; marker.links = p.links; marker.isSticky = false;
                 updatePopup(marker);
                 marker.on('mouseover', function() { if(!this.isSticky) this.openPopup(); });
@@ -216,26 +208,20 @@
         });
     }
 
-    // 모바일 안정성 강화된 사진 압축
     document.getElementById('fileInput').addEventListener('change', function(e) {
-        const file = e.target.files[0]; if (!file) return;
-        document.getElementById('global-loader').style.display = 'flex';
-        document.getElementById('loader-text').innerText = "사진 최적화 중...";
-
+        const file = e.target.files[0]; if(!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => {
+        reader.onload = ev => {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const max_size = 1200; // 모바일 메모리 고려 1200px
-                let width = img.width, height = img.height;
-                if (width > height) { if (width > max_size) { height *= max_size / width; width = max_size; } }
-                else { if (height > max_size) { width *= max_size / height; height = max_size; } }
+                const max_size = 1200; let width = img.width, height = img.height;
+                if(width > height) { if(width > max_size) { height *= max_size / width; width = max_size; } }
+                else { if(height > max_size) { width *= max_size / height; height = max_size; } }
                 canvas.width = width; canvas.height = height;
                 canvas.getContext('2d').drawImage(img, 0, 0, width, height);
                 uploadedImageData = canvas.toDataURL('image/jpeg', 0.8);
                 const p = document.getElementById('preview-img'); p.src = uploadedImageData; p.style.display = "block";
-                document.getElementById('global-loader').style.display = 'none';
             };
             img.src = ev.target.result;
         };
@@ -244,17 +230,17 @@
 
     function savePin() {
         const city = document.getElementById('cityInput').value, memo = document.getElementById('memo').value;
-        const links = { ig: document.getElementById('linkIG').value || "", yt: document.getElementById('linkYT').value || "", gmap: document.getElementById('linkGMap').value || "", web: document.getElementById('linkWEB').value || "" };
-        if (!currentCoords && !editingMarker) return alert("도시를 선택해주세요.");
-        const pinData = { city, memo, img: uploadedImageData || "", color: currentColor, links, coords: currentCoords || editingMarker.coords };
-        if (editingMarker) db.ref('pins/' + editingMarker.dbKey).set(pinData); else db.ref('pins').push(pinData);
+        const links = { ig: document.getElementById('linkIG').value||"", yt: document.getElementById('linkYT').value||"", gmap: document.getElementById('linkGMap').value||"", web: document.getElementById('linkWEB').value||"" };
+        if(!currentCoords && !editingMarker) return alert("도시 선택!");
+        const pinData = { city, memo, img: uploadedImageData||"", color: currentColor, links, coords: currentCoords || editingMarker.coords };
+        if(editingMarker) db.ref('pins/' + editingMarker.dbKey).set(pinData); else db.ref('pins').push(pinData);
         closeModal();
     }
 
-    function deletePin() { if (editingMarker && confirm("삭제하시겠습니까?")) { db.ref('pins/' + editingMarker.dbKey).remove(); closeModal(); } }
+    function deletePin() { if(editingMarker && confirm("삭제?")) { db.ref('pins/'+editingMarker.dbKey).remove(); closeModal(); } }
 
     window.triggerEdit = (id) => {
-        const marker = markers.find(m => m._leaflet_id == id);
+        const marker = markers.find(m => m.dbKey === id);
         if(marker) { editingMarker = marker; prepareEdit(marker); openModal(true); }
     };
 
@@ -268,22 +254,22 @@
             if(links.web) linkHtml += `<a href="${links.web}" class="link-item" target="_blank">Website</a>`;
             linkHtml += '</div>';
         }
-        marker.bindPopup(`<div class="popup-container"><div class="edit-pencil" onclick="window.triggerEdit('${marker._leaflet_id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div><span class="popup-city">${marker.city}</span><p class="popup-memo">${marker.memo || ''}</p>${marker.img ? `<img src="${marker.img}" class="popup-img">` : ''}${linkHtml}</div>`, { maxWidth: 220 });
+        marker.bindPopup(`<div class="popup-container"><div class="edit-pencil" onclick="window.triggerEdit('${marker.dbKey}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div><span class="popup-city">${marker.city}</span><p class="popup-memo">${marker.memo||''}</p>${marker.img?`<img src="${marker.img}" class="popup-img">`:''}${linkHtml}</div>`, {maxWidth:220});
     }
 
-    // --- 5. 공통 함수 ---
+    // 유틸리티
     const cityInput = document.getElementById('cityInput'), autoList = document.getElementById('autocomplete');
     cityInput.addEventListener('input', debounce(async (e) => {
-        const q = e.target.value; if (q.length < 2) { autoList.style.display = 'none'; return; }
+        const q = e.target.value; if(q.length < 2) { autoList.style.display='none'; return; }
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=5`);
         const data = await res.json(); autoList.innerHTML = '';
-        if (data.length > 0) { autoList.style.display = 'block'; data.forEach(item => {
+        if(data.length > 0) { autoList.style.display='block'; data.forEach(item => {
             const div = document.createElement('div'); div.className = 'autocomplete-item'; div.innerText = item.display_name;
-            div.onclick = () => { cityInput.value = item.display_name.split(',')[0]; currentCoords = [item.lat, item.lon]; autoList.style.display = 'none'; }; autoList.appendChild(div);
+            div.onclick = () => { cityInput.value = item.display_name.split(',')[0]; currentCoords = [item.lat, item.lon]; autoList.style.display='none'; }; autoList.appendChild(div);
         });}
     }, 300));
     function debounce(f, t) { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => f.apply(this, args), t); }; }
-    function applyFilter() { markers.forEach(m => { if (activeFilters.has(m.color)) { if(!map.hasLayer(m)) m.addTo(map); } else { if(map.hasLayer(m)) map.removeLayer(m); } }); }
+    function applyFilter() { markers.forEach(m => { if(activeFilters.has(m.color)) { if(!map.hasLayer(m)) m.addTo(map); } else { if(map.hasLayer(m)) map.removeLayer(m); } }); }
     function resetFilter() { activeFilters = new Set(colors); document.querySelectorAll('.filter-dot').forEach(d => d.classList.remove('off')); applyFilter(); }
     function openModal(isEdit) { document.getElementById('overlay').classList.add('active'); document.getElementById('modal').classList.add('active'); if(!isEdit) { editingMarker = null; resetForm(); document.getElementById('modalTitle').innerText = "📍 핀 추가"; document.getElementById('deleteBtn').style.display = "none"; } else { document.getElementById('modalTitle').innerText = "✏️ 핀 수정"; document.getElementById('deleteBtn').style.display = "block"; } }
     function closeModal() { document.getElementById('overlay').classList.remove('active'); document.getElementById('modal').classList.remove('active'); }
