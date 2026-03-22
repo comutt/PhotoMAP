@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Minimal Memory Map</title>
+    <title>PhotoMAP</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -15,76 +15,75 @@
 
     <style>
         :root { --primary: #000000; --danger: #ff4757; --shadow: 0 10px 30px rgba(0,0,0,0.1); --radius: 24px; }
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: white; font-family: -apple-system, sans-serif; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: white; font-family: 'Pretendard', sans-serif; }
         
         #map { width: 100%; height: 100%; background: white; position: absolute; top: 0; left: 0; z-index: 1; }
         .leaflet-tile-container { filter: grayscale(1) brightness(1.05); }
 
-        /* --- 로그인 화면 (SVG 아이콘 내장) --- */
+        /* --- 로그인 화면 --- */
         #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 10000; display: flex; align-items: center; justify-content: center; }
         .login-box { width: 85%; max-width: 320px; text-align: center; padding: 40px 20px; border-radius: 30px; box-shadow: var(--shadow); }
         .login-box h2 { font-weight: 800; margin-bottom: 30px; font-size: 24px; }
         .google-login-btn { width: 100%; padding: 14px; background: white; border: 1px solid #ddd; border-radius: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 15px; }
 
-        /* --- 팝업 UI --- */
+        /* --- 팝업 UI (모바일 터치 보정) --- */
         .leaflet-popup-close-button { display: none !important; }
-        .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: var(--shadow); padding: 0; overflow: hidden; }
-        .leaflet-popup-content { margin: 0; width: 220px !important; }
-        .popup-container { padding: 20px 15px 15px 15px; position: relative; }
+        .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: var(--shadow); padding: 0; overflow: hidden; pointer-events: auto !important; }
+        .leaflet-popup-content { margin: 0; width: 220px !important; pointer-events: auto !important; }
+        .popup-container { padding: 20px 15px 15px 15px; position: relative; pointer-events: auto !important; }
+        
         .popup-city { font-weight: 800; font-size: 16px; margin-bottom: 5px; display: block; padding-right: 25px; }
         .popup-memo { font-size: 13px; color: #555; line-height: 1.4; margin: 8px 0; white-space: pre-wrap; }
-        .popup-img { width: 100%; border-radius: 10px; margin-top: 5px; display: block; border: 1px solid #f0f0f0; pointer-events: none; }
+        .popup-img { width: 100%; border-radius: 10px; margin-top: 5px; display: block; border: 1px solid #f0f0f0; }
         
-        /* 팝업 내 로고 주석 */
         .popup-links { margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-        .link-item { display: flex; align-items: center; gap: 8px; font-size: 11px; text-decoration: none; color: #777; transition: 0.2s; }
+        .link-item { display: flex; align-items: center; gap: 8px; font-size: 12px; text-decoration: none; color: #555; }
         .link-icon { width: 14px; height: 14px; stroke: #000; fill: none; stroke-width: 2.2; }
 
-        /* 수정 연필 버튼 */
-        .edit-pencil { position: absolute; top: 18px; right: 15px; cursor: pointer; width: 24px; height: 24px; z-index: 1000; display: flex; align-items: center; justify-content: center; }
-        .edit-pencil svg { width: 18px; height: 18px; fill: none; stroke: #000; stroke-width: 2.2; pointer-events: none; }
+        /* 수정 연필 버튼 (터치 영역 강화) */
+        .edit-pencil { 
+            position: absolute; top: 15px; right: 15px; 
+            cursor: pointer; width: 32px; height: 32px; 
+            z-index: 2000; display: flex; align-items: center; justify-content: center;
+            pointer-events: auto !important; /* 모달 터치 관통 방지 */
+            -webkit-tap-highlight-color: transparent;
+        }
+        .edit-pencil svg { width: 20px; height: 20px; fill: none; stroke: #000; stroke-width: 2.2; }
 
-        /* --- 메인 UI 버튼들 --- */
+        /* --- 상단 검색바 --- */
         .top-search-bar { position: fixed; top: 20px; left: 20px; z-index: 1000; display: flex; align-items: center; background: white; height: 50px; width: 50px; border-radius: 25px; box-shadow: var(--shadow); overflow: hidden; transition: 0.4s; border: 1px solid #eee; }
         .top-search-bar:hover, .top-search-bar:focus-within { width: calc(100% - 100px); max-width: 300px; }
         .search-icon-box { min-width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; }
         .search-icon-box svg { width: 20px; height: 20px; stroke: #000; stroke-width: 2.5; fill: none; }
-        .top-search-bar input { width: 100%; border: none; outline: none; font-size: 15px; opacity: 0; padding-right: 15px; background: transparent; }
+        .top-search-bar input { width: 100%; border: none; outline: none; font-size: 15px; opacity: 0; padding-right: 15px; }
         .top-search-bar:hover input, .top-search-bar:focus-within input { opacity: 1; }
 
+        /* --- 하단 버튼 --- */
         .controls-zoom { position: fixed; bottom: 25px; left: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
         .btn-circle { width: 38px; height: 38px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; font-size: 18px; }
         .btn-add { position: fixed; bottom: 25px; right: 20px; width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
 
-        /* --- 필터링 (터치 간섭 해결 버전) --- */
+        /* --- 필터링 --- */
         .filter-wrapper { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; align-items: center; }
         .filter-main-btn { width: 50px; height: 50px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; border: 1px solid #eee; cursor: pointer; position: relative; z-index: 1001; }
         .filter-main-btn svg { width: 20px; height: 20px; stroke: #000; stroke-width: 2.2; fill: none; }
-        
-        .filter-menu { 
-            display: flex; flex-direction: column; gap: 10px; padding: 12px 0; background: white; border-radius: 25px; box-shadow: var(--shadow); border: 1px solid #eee; 
-            opacity: 0; transform: translateY(-10px); transition: 0.3s; margin-top: 5px;
-            pointer-events: none; /* 닫혔을 때 터치 방지 */
-        }
+        .filter-menu { display: flex; flex-direction: column; gap: 10px; padding: 12px 0; background: white; border-radius: 25px; box-shadow: var(--shadow); border: 1px solid #eee; opacity: 0; transform: translateY(-10px); transition: 0.3s; margin-top: 5px; pointer-events: none; }
         .filter-menu.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        
         .filter-dot { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; margin: 0 16px; flex-shrink: 0; }
         .filter-dot.off { opacity: 0.2; transform: scale(0.8); }
-
         .logout-btn { width: 44px; height: 44px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #eee; margin-top: 15px; }
         .logout-btn svg { width: 18px; height: 18px; stroke: #ff4757; stroke-width: 2.5; fill: none; }
 
         /* --- 모달 --- */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.1); backdrop-filter: blur(8px); z-index: 2000; }
-        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 350px; background: white; padding: 25px; border-radius: var(--radius); box-shadow: var(--shadow); z-index: 2001; max-height: 85vh; overflow-y: auto; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.1); backdrop-filter: blur(8px); z-index: 11000; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 350px; background: white; padding: 25px; border-radius: var(--radius); box-shadow: var(--shadow); z-index: 11001; max-height: 85vh; overflow-y: auto; }
         .modal.active, .modal-overlay.active { display: block; }
         .modal-tabs { display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #f0f0f0; }
         .tab { padding: 10px 0; color: #bbb; font-weight: 800; cursor: pointer; font-size: 14px; position: relative; }
         .tab.active { color: var(--primary); }
         .tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: var(--primary); }
-        
         .input-field { width: 100%; padding: 14px; border: 1.5px solid #eee; border-radius: 14px; box-sizing: border-box; font-size: 14px; outline: none; margin-bottom: 12px; }
-        .autocomplete-container { position: absolute; top: 120px; left: 25px; width: calc(100% - 50px); background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 2100; max-height: 150px; overflow-y: auto; display: none; border: 1px solid #f0f0f0; }
+        .autocomplete-container { position: absolute; top: 120px; left: 25px; width: calc(100% - 50px); background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 12000; max-height: 150px; overflow-y: auto; display: none; border: 1px solid #f0f0f0; }
         .autocomplete-item { padding: 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f9f9f9; }
         .file-upload-section { background: #fdfdfd; border: 1.5px dashed #ccc; border-radius: 14px; padding: 15px; text-align: center; cursor: pointer; margin-bottom: 12px; font-size: 12px; color: #888; }
         #preview-img { width: 100%; max-height: 100px; object-fit: cover; border-radius: 10px; display: none; margin-top: 5px; }
@@ -97,7 +96,6 @@
 </head>
 <body>
 
-<!-- 구글 로그인 (SVG 아이콘 고정) -->
 <div id="login-overlay">
     <div class="login-box">
         <h2>Memory Map</h2>
@@ -121,39 +119,28 @@
     <div class="logout-btn" onclick="handleLogout()"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></div>
 </div>
 
-<div class="controls-zoom">
-    <button class="btn-circle" onclick="map.zoomIn()">+</button>
-    <button class="btn-circle" onclick="map.zoomOut()">−</button>
-</div>
+<div class="controls-zoom"><button class="btn-circle" onclick="map.zoomIn()">+</button><button class="btn-circle" onclick="map.zoomOut()">−</button></div>
 <div class="btn-add" onclick="openModal(false)">+</div>
-
 <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
 <div class="modal" id="modal">
     <div class="modal-header" id="modalTitle">📍 핀 추가</div>
-    <div class="modal-tabs" id="modalTabs">
-        <div class="tab active" id="tab0Btn" onclick="setTab(0)">핀 정보</div>
-        <div class="tab" id="tab1Btn" onclick="setTab(1)">링크 주소</div>
-    </div>
+    <div class="modal-tabs" id="modalTabs"><div class="tab active" id="tab0Btn" onclick="setTab(0)">정보</div><div class="tab" id="tab1Btn" onclick="setTab(1)">링크</div></div>
     <div id="tab0">
-        <input type="text" id="cityInput" class="input-field" placeholder="도시명 검색" autocomplete="off">
-        <div id="autocomplete" class="autocomplete-container"></div>
-        <div class="file-upload-section" onclick="document.getElementById('fileInput').click()">🖼️ 사진 파일 선택<img id="preview-img"></div>
+        <input type="text" id="cityInput" class="input-field" placeholder="도시명 검색" autocomplete="off"><div id="autocomplete" class="autocomplete-container"></div>
+        <div class="file-upload-section" onclick="document.getElementById('fileInput').click()">🖼️ 사진 선택<img id="preview-img"></div>
         <input type="file" id="fileInput" hidden accept="image/*">
         <textarea id="memo" class="input-field" style="height: 80px; resize: none;" placeholder="메모를 입력하세요..."></textarea>
     </div>
     <div id="tab1" style="display:none;">
-        <input type="text" id="linkIG" class="input-field" placeholder="Instagram URL">
-        <input type="text" id="linkYT" class="input-field" placeholder="YouTube URL">
-        <input type="text" id="linkGMap" class="input-field" placeholder="Google Maps URL">
-        <input type="text" id="linkWEB" class="input-field" placeholder="Website URL">
+        <input type="text" id="linkIG" class="input-field" placeholder="Instagram URL"><input type="text" id="linkYT" class="input-field" placeholder="YouTube URL"><input type="text" id="linkGMap" class="input-field" placeholder="Google Maps URL"><input type="text" id="linkWEB" class="input-field" placeholder="Website URL">
     </div>
     <div class="color-row" id="palette"></div>
     <button class="btn-save" id="saveBtn" onclick="savePin()">SAVE JOURNEY</button>
-    <button class="btn-delete" id="deleteBtn" style="display:none;" onclick="deletePin()">핀 삭제하기</button>
+    <button class="btn-delete" id="deleteBtn" style="display:none;" onclick="deletePin()">핀 삭제</button>
 </div>
 
 <script>
-    // --- 1. Firebase 설정 (본인 값 확인) ---
+    // --- 1. Firebase 설정 (본인 정보 입력 필수) ---
     const firebaseConfig = {
         apiKey: "AIzaSyBRc5qN-elJyx9E24u3sCgBBjPHuYJGScI",
         authDomain: "mapforme-6a960.firebaseapp.com",
@@ -167,33 +154,16 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth(), provider = new firebase.auth.GoogleAuthProvider();
 
-    // --- 2. 로그인 제어 (팝업 방식 복구 + 즉시 전환) ---
-    function hideLoginOverlay() {
-        document.getElementById('login-overlay').style.display = 'none';
-    }
-
+    // --- 2. 로그인 및 데이터 연결 ---
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-    
     auth.onAuthStateChanged(user => {
-        if (user) {
-            hideLoginOverlay();
-            loadPins();
-        } else {
-            document.getElementById('login-overlay').style.display = 'flex';
-        }
+        if (user) { document.getElementById('login-overlay').style.display = 'none'; loadPins(); }
+        else { document.getElementById('login-overlay').style.display = 'flex'; }
     });
-
-    function handleGoogleLogin() {
-        auth.signInWithPopup(provider).then(res => {
-            if(res.user) hideLoginOverlay();
-        }).catch(() => {
-            auth.signInWithRedirect(provider);
-        });
-    }
-
+    function handleGoogleLogin() { auth.signInWithPopup(provider).catch(() => auth.signInWithRedirect(provider)); }
     function handleLogout() { if(confirm("로그아웃?")) auth.signOut().then(() => location.reload()); }
 
-    // --- 3. 지도 및 기능 ---
+    // --- 3. 지도 설정 (태평양 중심) ---
     const map = L.map('map', { zoomControl: false, worldCopyJump: true, maxBounds: [[-75, -Infinity], [85, Infinity]], minZoom: 2 }).setView([25, 160], 3);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png').addTo(map);
 
@@ -213,7 +183,7 @@
 
     map.on('click', () => { markers.forEach(m => { m.isSticky = false; m.closePopup(); }); filterMenu.classList.remove('active'); });
 
-    // --- 4. 핀 로직 (모바일 수정 버그 해결) ---
+    // --- 4. 핀 관리 로직 (무한 수정 가능하도록 초기화 강화) ---
     function loadPins() {
         db.ref('pins').off();
         db.ref('pins').on('value', snapshot => {
@@ -222,7 +192,7 @@
             for (let key in data) {
                 const p = data[key];
                 const marker = L.circleMarker(p.coords, { radius: 9, fillColor: p.color, color: "#fff", weight: 2.5, fillOpacity: 1 }).addTo(map);
-                marker.dbKey = key; marker.city = p.city; marker.memo = p.memo; marker.img = p.img; marker.coords = p.coords; marker.color = p.color; marker.links = p.links; marker.isSticky = false;
+                marker.dbKey = key; marker.city = p.city; marker.memo = p.memo; marker.img = p.img; marker.coords = p.coords; marker.color = p.color; marker.links = p.links || {}; marker.isSticky = false;
                 updatePopup(marker);
                 marker.on('mouseover', function() { if(!this.isSticky) this.openPopup(); });
                 marker.on('mouseout', function() { if(!this.isSticky) this.closePopup(); });
@@ -233,6 +203,7 @@
         });
     }
 
+    // 사진 압축 (모바일 메모리 보전)
     document.getElementById('fileInput').addEventListener('change', function(e) {
         const file = e.target.files[0]; if(!file) return;
         const reader = new FileReader();
@@ -264,6 +235,7 @@
 
     function deletePin() { if(editingMarker && confirm("삭제?")) { db.ref('pins/'+editingMarker.dbKey).remove(); closeModal(); } }
 
+    // 전역 수정 호출 (모바일 터치 씹힘 방지)
     window.triggerEdit = (id) => {
         const marker = markers.find(m => m.dbKey === id);
         if(marker) { editingMarker = marker; prepareEdit(marker); openModal(true); }
@@ -279,10 +251,17 @@
             if(links.web) linkHtml += `<a href="${links.web}" class="link-item" target="_blank"><svg class="link-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>Website</a>`;
             linkHtml += '</div>';
         }
-        marker.bindPopup(`<div class="popup-container"><div class="edit-pencil" onclick="window.triggerEdit('${marker.dbKey}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div><span class="popup-city">${marker.city}</span><p class="popup-memo">${marker.memo||''}</p>${marker.img?`<img src="${marker.img}" class="popup-img">`:''}${linkHtml}</div>`, {maxWidth:220});
+        // 연필 아이콘 HTML (onclick에 전역 함수 연결)
+        const html = `<div class="popup-container">
+            <div class="edit-pencil" onclick="window.triggerEdit('${marker.dbKey}')">
+                <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </div>
+            <span class="popup-city">${marker.city}</span><p class="popup-memo">${marker.memo||''}</p>
+            ${marker.img?`<img src="${marker.img}" class="popup-img">`:''}${linkHtml}</div>`;
+        marker.bindPopup(html, {maxWidth:220});
     }
 
-    // 유틸리티
+    // --- 5. 유틸리티 ---
     const cityInput = document.getElementById('cityInput'), autoList = document.getElementById('autocomplete');
     cityInput.addEventListener('input', debounce(async (e) => {
         const q = e.target.value; if(q.length < 2) { autoList.style.display='none'; return; }
