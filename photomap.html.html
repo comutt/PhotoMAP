@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal Memory Map (Sync)</title>
+    
+    <!-- Leaflet & Geocoder -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+
+    <!-- Firebase SDK (동기화 엔진) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root { --primary: #000000; --danger: #ff4757; --shadow: 0 10px 30px rgba(0,0,0,0.1); --radius: 24px; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: white; font-family: 'Pretendard', sans-serif; }
+        #map { width: 100%; height: 100vh; background: white; }
+        .leaflet-tile-container { filter: grayscale(1) brightness(1.05); }
+
+        /* 팝업 스타일 */
+        .leaflet-popup-close-button { display: none !important; }
+        .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: var(--shadow); padding: 0; overflow: hidden; }
+        .leaflet-popup-content { margin: 0; width: 220px !important; }
+        .popup-container { padding: 20px 15px 15px 15px; position: relative; }
+        .popup-city { font-weight: 800; font-size: 15px; margin-bottom: 5px; display: block; padding-right: 25px; }
+        .popup-memo { font-size: 13px; color: #555; line-height: 1.4; margin: 8px 0; white-space: pre-wrap; }
+        .popup-img { width: 100%; border-radius: 10px; margin-top: 5px; display: block; border: 1px solid #f0f0f0; }
+        .popup-links { margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .link-item { display: flex; align-items: center; gap: 8px; font-size: 11px; text-decoration: none; color: #777; }
+        .link-icon { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.5; }
+        .edit-pencil { position: absolute; top: 18px; right: 15px; cursor: pointer; width: 18px; height: 18px; z-index: 10; }
+        .edit-pencil svg { fill: none; stroke: #000; stroke-width: 2; }
+
+        /* UI 요소 */
+        .top-search-bar { position: fixed; top: 25px; left: 25px; z-index: 1000; display: flex; align-items: center; background: white; height: 52px; width: 52px; border-radius: 26px; box-shadow: var(--shadow); overflow: hidden; transition: 0.4s cubic-bezier(0.2, 1, 0.3, 1); border: 1px solid #eee; }
+        .top-search-bar:hover, .top-search-bar:focus-within { width: 300px; }
+        .search-icon-box { min-width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; }
+        .search-icon-box svg { width: 20px; height: 20px; stroke: #000; stroke-width: 2.5; fill: none; }
+        .top-search-bar input { width: 100%; border: none; outline: none; font-size: 15px; opacity: 0; padding-right: 20px; }
+        .top-search-bar:hover input, .top-search-bar:focus-within input { opacity: 1; }
+
+        .controls-zoom { position: fixed; bottom: 30px; left: 25px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+        .btn-circle { width: 38px; height: 38px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; font-size: 16px; transition: 0.2s; }
+        .btn-add { position: fixed; bottom: 30px; right: 25px; width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+
+        /* 필터링 UI */
+        .filter-wrapper { position: fixed; top: 25px; right: 25px; z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .filter-main-btn { width: 52px; height: 52px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #eee; }
+        .filter-main-btn svg { width: 20px; height: 20px; stroke: #000; stroke-width: 2.2; fill: none; }
+        .filter-menu { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; background: white; border-radius: 26px; box-shadow: var(--shadow); border: 1px solid #eee; visibility: hidden; opacity: 0; transform: translateY(-10px); transition: 0.3s; }
+        .filter-wrapper:hover .filter-menu { visibility: visible; opacity: 1; transform: translateY(0); }
+        .filter-dot { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2.5px solid transparent; transition: 0.2s; margin: 0 17px; }
+        .filter-dot.off { opacity: 0.2; transform: scale(0.8); }
+
+        /* 모달 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.4); backdrop-filter: blur(10px); z-index: 2000; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; background: white; padding: 30px; border-radius: var(--radius); box-shadow: var(--shadow); z-index: 2001; }
+        .modal.active, .modal-overlay.active { display: block; }
+        .modal-tabs { display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #f0f0f0; }
+        .tab { padding: 10px 0; color: #bbb; font-weight: 800; cursor: pointer; font-size: 14px; position: relative; }
+        .tab.active { color: var(--primary); }
+        .tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: var(--primary); }
+        .input-field { width: 100%; padding: 14px 18px; border: 1.5px solid #eee; border-radius: 14px; box-sizing: border-box; font-size: 14px; outline: none; margin-bottom: 12px; }
+        .autocomplete-container { position: absolute; top: 125px; left: 30px; width: calc(100% - 60px); background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 2100; max-height: 150px; overflow-y: auto; display: none; border: 1px solid #f0f0f0; }
+        .autocomplete-item { padding: 12px 18px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f9f9f9; }
+        .file-upload-section { background: #fdfdfd; border: 1.5px dashed #ccc; border-radius: 14 Korea; padding: 15px; text-align: center; cursor: pointer; margin-bottom: 12px; font-size: 12px; color: #888; }
+        #preview-img { width: 100%; max-height: 80px; object-fit: cover; border-radius: 10px; display: none; margin-top: 5px; }
+        .color-row { display: flex; justify-content: space-between; flex-wrap: nowrap; gap: 5px; margin-bottom: 25px; }
+        .color-circle { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2.5px solid transparent; transition: 0.2s; flex-shrink: 0; }
+        .color-circle.active { border-color: var(--primary); transform: scale(1.1); }
+        .btn-save { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 16px; font-weight: bold; font-size: 15px; cursor: pointer; }
+        .btn-delete { width: 100%; padding: 10px; background: transparent; color: var(--danger); border: none; font-size: 13px; font-weight: bold; cursor: pointer; text-decoration: underline; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="top-search-bar">
+    <div class="search-icon-box"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></div>
+    <input type="text" id="topInput" placeholder="도시 검색..." onkeypress="if(event.keyCode==13) globalSearch()">
+</div>
+
+<div class="filter-wrapper">
+    <div class="filter-main-btn" onclick="resetFilter()" title="모두 켜기"><svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg></div>
+    <div class="filter-menu" id="filterMenu"></div>
+</div>
+
+<div class="controls-zoom">
+    <button class="btn-circle" onclick="map.zoomIn()">+</button>
+    <button class="btn-circle" onclick="map.zoomOut()">−</button>
+</div>
+<div class="btn-add" onclick="openModal(false)">+</div>
+
+<div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
+<div class="modal" id="modal">
+    <div class="modal-header" id="modalTitle">📍 핀 추가</div>
+    <div class="modal-tabs" id="modalTabs">
+        <div class="tab active" id="tab0Btn" onclick="setTab(0)">핀 정보</div>
+        <div class="tab" id="tab1Btn" onclick="setTab(1)">링크 주소</div>
+    </div>
+    <div id="tab0">
+        <div class="search-group">
+            <input type="text" id="cityInput" class="input-field" placeholder="도시명 검색" autocomplete="off">
+            <div id="autocomplete" class="autocomplete-container"></div>
+        </div>
+        <div class="file-upload-section" onclick="document.getElementById('fileInput').click()">🖼️ 사진 파일 선택<img id="preview-img"></div>
+        <input type="file" id="fileInput" hidden accept="image/*">
+        <textarea id="memo" class="input-field" style="height: 80px; resize: none;" placeholder="메모를 입력하세요..."></textarea>
+    </div>
+    <div id="tab1" style="display:none;">
+        <input type="text" id="linkIG" class="input-field" placeholder="Instagram URL">
+        <input type="text" id="linkYT" class="input-field" placeholder="YouTube URL">
+        <input type="text" id="linkGMap" class="input-field" placeholder="Google Maps URL">
+        <input type="text" id="linkWEB" class="input-field" placeholder="Website URL">
+    </div>
+    <div class="color-row" id="palette"></div>
+    <button class="btn-save" id="saveBtn" onclick="savePin()">SAVE JOURNEY</button>
+    <button class="btn-delete" id="deleteBtn" style="display:none;" onclick="deletePin()">핀 삭제하기</button>
+</div>
+
+<script>
+    // ------------------------------------------------------------------
+    // STEP 3-1: 본인의 Firebase 설정값을 여기에 넣으세요!
+    // ------------------------------------------------------------------
+    const firebaseConfig = {
+        apiKey: "AIzaSyBRc5qN-elJyx9E24u3sCgBBjPHuYJGScI",
+        authDomain: "mapforme-6a960.firebaseapp.com",
+        projectId: "mapforme-6a960",
+        storageBucket: "mapforme-6a960.firebasestorage.app",
+        messagingSenderId: "1017226924243",
+        appId: "1:1017226924243:web:7fee9bd1df5d8efb93c426",
+        measurementId: "G-F3WNXS12E5"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    // ------------------------------------------------------------------
+
+    const map = L.map('map', { zoomControl: false, worldCopyJump: true, maxBounds: [[-70, -Infinity], [85, Infinity]], minZoom: 2 }).setView([25, 160], 3);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png').addTo(map);
+
+    const colors = ['#ff5252', '#ffab40', '#ffd740', '#69f0ae', '#40c4ff', '#7c4dff', '#ff9ff3', '#576574', '#222f3e', '#000000'];
+    let activeFilters = new Set(colors), currentCoords = null, currentColor = colors[0], uploadedImageData = null, editingMarker = null;
+    let markers = []; 
+
+    // 필터 & 팔레트 생성
+    const filterMenu = document.getElementById('filterMenu');
+    const palette = document.getElementById('palette');
+    colors.forEach(c => {
+        const fDot = document.createElement('div'); fDot.className = 'filter-dot'; fDot.style.background = c; fDot.onclick = () => toggleFilter(c, fDot); filterMenu.appendChild(fDot);
+        const pDot = document.createElement('div'); pDot.className = 'color-circle' + (c === currentColor ? ' active' : ''); pDot.style.background = c; pDot.setAttribute('data-color', c); pDot.onclick = () => selectColor(c, pDot); palette.appendChild(pDot);
+    });
+
+    map.on('click', () => markers.forEach(m => { m.isSticky = false; m.closePopup(); }));
+
+    // ------------------------------------------------------------------
+    // 핵심: 실시간 동기화 리스너 (DB에서 데이터를 가져와 지도에 그림)
+    // ------------------------------------------------------------------
+    db.ref('pins').on('value', (snapshot) => {
+        // 기존 마커 제거
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+
+        const data = snapshot.val();
+        for (let key in data) {
+            const p = data[key];
+            const marker = L.circleMarker(p.coords, { radius: 8, fillColor: p.color, color: "#fff", weight: 2, fillOpacity: 1 }).addTo(map);
+            
+            // 데이터 속성 주입
+            marker.dbKey = key; marker.city = p.city; marker.memo = p.memo; marker.img = p.img; marker.coords = p.coords; marker.color = p.color; marker.links = p.links; marker.isSticky = false;
+
+            updatePopup(marker);
+            bindEvents(marker);
+            markers.push(marker);
+        }
+        applyFilter();
+    });
+
+    function bindEvents(marker) {
+        marker.on('mouseover', function() { if(!this.isSticky) this.openPopup(); });
+        marker.on('mouseout', function() { if(!this.isSticky) this.closePopup(); });
+        marker.on('click', function(e) { L.DomEvent.stopPropagation(e); markers.forEach(m => m.isSticky = false); this.isSticky = true; this.openPopup(); });
+    }
+
+    function savePin() {
+        const city = cityInput.value, memo = document.getElementById('memo').value;
+        const links = { ig: document.getElementById('linkIG').value, yt: document.getElementById('linkYT').value, gmap: document.getElementById('linkGMap').value, web: document.getElementById('linkWEB').value };
+
+        if (!currentCoords && !editingMarker) return alert("도시를 검색하여 선택해주세요.");
+
+        const pinData = { city, memo, img: uploadedImageData, color: currentColor, links, coords: currentCoords || editingMarker.coords };
+
+        if (editingMarker) {
+            db.ref('pins/' + editingMarker.dbKey).set(pinData);
+        } else {
+            db.ref('pins').push(pinData);
+        }
+        closeModal();
+    }
+
+    function deletePin() {
+        if (editingMarker && confirm("삭제하시겠습니까?")) {
+            db.ref('pins/' + editingMarker.dbKey).remove();
+            closeModal();
+        }
+    }
+    // ------------------------------------------------------------------
+
+    function updatePopup(marker) {
+        const links = marker.links || {};
+        let linkHtml = '';
+        if(links.ig || links.yt || links.gmap || links.web) {
+            linkHtml = '<div class="popup-links">';
+            if(links.ig) linkHtml += `<a href="${links.ig}" class="link-item" target="_blank"><svg class="link-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>Instagram</a>`;
+            if(links.yt) linkHtml += `<a href="${links.yt}" class="link-item" target="_blank"><svg class="link-icon" viewBox="0 0 24 24"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>YouTube</a>`;
+            if(links.gmap) linkHtml += `<a href="${links.gmap}" class="link-item" target="_blank"><svg class="link-icon" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>Google Maps</a>`;
+            if(links.web) linkHtml += `<a href="${links.web}" class="link-item" target="_blank"><svg class="link-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>Website</a>`;
+            linkHtml += '</div>';
+        }
+        let html = `<div class="popup-container"><div class="edit-pencil" onclick="window.triggerEdit('${marker._leaflet_id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div><span class="popup-city">${marker.city}</span><p class="popup-memo">${marker.memo || ''}</p>${marker.img ? `<img src="${marker.img}" class="popup-img">` : ''}${linkHtml}</div>`;
+        marker.bindPopup(html, { maxWidth: 220 });
+    }
+
+    // 사진 업로드
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => { uploadedImageData = event.target.result; const preview = document.getElementById('preview-img'); preview.src = uploadedImageData; preview.style.display = "block"; };
+        reader.readAsDataURL(file);
+    });
+
+    const cityInput = document.getElementById('cityInput'), autoList = document.getElementById('autocomplete');
+    cityInput.addEventListener('input', debounce(async (e) => {
+        const query = e.target.value; if (query.length < 2) { autoList.style.display = 'none'; return; }
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5`);
+        const data = await res.json();
+        autoList.innerHTML = '';
+        if (data.length > 0) {
+            autoList.style.display = 'block';
+            data.forEach(item => {
+                const div = document.createElement('div'); div.className = 'autocomplete-item'; div.innerText = item.display_name;
+                div.onclick = () => { cityInput.value = item.display_name.split(',')[0]; currentCoords = [item.lat, item.lon]; autoList.style.display = 'none'; };
+                autoList.appendChild(div);
+            });
+        }
+    }, 300));
+
+    function debounce(func, timeout = 300) { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => { func.apply(this, args); }, timeout); }; }
+    function toggleFilter(color, el) { if (activeFilters.has(color)) { activeFilters.delete(color); el.classList.add('off'); } else { activeFilters.add(color); el.classList.remove('off'); } applyFilter(); }
+    function resetFilter() { activeFilters = new Set(colors); document.querySelectorAll('.filter-dot').forEach(dot => dot.classList.remove('off')); applyFilter(); }
+    function applyFilter() { markers.forEach(m => { if (activeFilters.has(m.color)) { if (!map.hasLayer(m)) m.addTo(map); } else { if (map.hasLayer(m)) map.removeLayer(m); } }); }
+    function openModal(isEdit) { document.getElementById('overlay').classList.add('active'); document.getElementById('modal').classList.add('active'); if(!isEdit) { editingMarker = null; resetForm(); document.getElementById('modalTitle').innerText = "📍 핀 추가"; document.getElementById('deleteBtn').style.display = "none"; } else { document.getElementById('modalTitle').innerText = "✏️ 핀 수정"; document.getElementById('deleteBtn').style.display = "block"; } }
+    function closeModal() { document.getElementById('overlay').classList.remove('active'); document.getElementById('modal').classList.remove('active'); }
+    function resetForm() { cityInput.value = ""; document.getElementById('memo').value = ""; document.getElementById('preview-img').style.display = 'none'; document.getElementById('fileInput').value = ""; uploadedImageData = null; currentCoords = null; document.getElementById('linkIG').value = ""; document.getElementById('linkYT').value = ""; document.getElementById('linkGMap').value = ""; document.getElementById('linkWEB').value = ""; }
+    function setTab(idx) { document.getElementById('tab0').style.display = idx === 0 ? 'block' : 'none'; document.getElementById('tab1').style.display = idx === 1 ? 'block' : 'none'; document.getElementById('tab0Btn').classList.toggle('active', idx === 0); document.getElementById('tab1Btn').classList.toggle('active', idx === 1); }
+    function selectColor(color, el) { currentColor = color; document.querySelectorAll('.color-circle').forEach(c => c.classList.remove('active')); el.classList.add('active'); }
+    window.triggerEdit = (id) => { const marker = markers.find(m => m._leaflet_id == id); if(marker) { editingMarker = marker; prepareEdit(marker); openModal(true); } };
+    function prepareEdit(marker) { cityInput.value = marker.city; document.getElementById('memo').value = marker.memo; if(marker.img) { document.getElementById('preview-img').src = marker.img; document.getElementById('preview-img').style.display = "block"; uploadedImageData = marker.img; } else { document.getElementById('preview-img').style.display = "none"; uploadedImageData = null; } currentCoords = marker.coords; currentColor = marker.color; document.getElementById('linkIG').value = marker.links.ig || ""; document.getElementById('linkYT').value = marker.links.yt || ""; document.getElementById('linkGMap').value = marker.links.gmap || ""; document.getElementById('linkWEB').value = marker.links.web || ""; document.querySelectorAll('.color-circle').forEach(c => c.classList.toggle('active', c.getAttribute('data-color') === currentColor)); }
+    function globalSearch() { const val = document.getElementById('topInput').value; if(!val) return; fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${val}&limit=1`).then(r => r.json()).then(d => { if(d.length > 0) map.setView([d[0].lat, d[0].lon], 7); }); }
+</script>
+
+</body>
+</html>
