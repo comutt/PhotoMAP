@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Private Memory Map</title>
+    <title>Minimal Memory Map</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 
-    <!-- Firebase SDK -->
+    <!-- Firebase SDK (v9 Compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -19,43 +19,41 @@
         #map { width: 100%; height: 100vh; background: white; }
         .leaflet-tile-container { filter: grayscale(1) brightness(1.05); }
 
-        /* 로그인 화면 커스텀 */
-        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        /* --- 로그인 화면 --- */
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s; }
         .login-box { width: 320px; text-align: center; padding: 40px; border-radius: 30px; box-shadow: var(--shadow); }
         .login-box h2 { font-weight: 800; margin-bottom: 10px; font-size: 24px; }
-        .login-box p { color: #888; font-size: 14px; margin-bottom: 30px; }
-        
-        .google-login-btn { 
-            width: 100%; padding: 14px; background: white; color: #333; 
-            border: 1px solid #ddd; border-radius: 14px; font-weight: bold; 
-            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
-            transition: 0.2s; font-size: 15px;
-        }
-        .google-login-btn:hover { background: #f9f9f9; border-color: #bbb; }
-        .google-icon { width: 18px; height: 18px; }
+        .google-login-btn { width: 100%; padding: 14px; background: white; border: 1px solid #ddd; border-radius: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }
+        .google-login-btn:hover { background: #f9f9f9; }
 
-        /* 기존 완벽한 UI 유지 */
+        /* --- 팝업 UI --- */
         .leaflet-popup-close-button { display: none !important; }
-        .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: var(--shadow); padding: 0; }
+        .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: var(--shadow); padding: 0; overflow: hidden; }
         .leaflet-popup-content { margin: 0; width: 220px !important; }
         .popup-container { padding: 20px 15px 15px 15px; position: relative; }
         .popup-city { font-weight: 800; font-size: 15px; margin-bottom: 5px; display: block; padding-right: 25px; }
         .popup-memo { font-size: 13px; color: #555; line-height: 1.4; margin: 8px 0; white-space: pre-wrap; }
         .popup-img { width: 100%; border-radius: 10px; margin-top: 5px; display: block; border: 1px solid #f0f0f0; }
         .popup-links { margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-        .link-item { display: flex; align-items: center; gap: 8px; font-size: 11px; text-decoration: none; color: #777; }
+        .link-item { display: flex; align-items: center; gap: 8px; font-size: 11px; text-decoration: none; color: #777; transition: 0.2s; }
+        .link-item:hover { color: #000; }
         .link-icon { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.5; }
         .edit-pencil { position: absolute; top: 18px; right: 15px; cursor: pointer; width: 18px; height: 18px; z-index: 10; }
         .edit-pencil svg { fill: none; stroke: #000; stroke-width: 2; }
-        .top-search-bar { position: fixed; top: 25px; left: 25px; z-index: 1000; display: flex; align-items: center; background: white; height: 52px; width: 52px; border-radius: 26px; box-shadow: var(--shadow); overflow: hidden; transition: 0.4s; border: 1px solid #eee; }
+
+        /* --- 메인 UI --- */
+        .top-search-bar { position: fixed; top: 25px; left: 25px; z-index: 1000; display: flex; align-items: center; background: white; height: 52px; width: 52px; border-radius: 26px; box-shadow: var(--shadow); overflow: hidden; transition: 0.4s cubic-bezier(0.2, 1, 0.3, 1); border: 1px solid #eee; }
         .top-search-bar:hover, .top-search-bar:focus-within { width: 300px; }
-        .search-icon-box { min-width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; }
+        .search-icon-box { min-width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .search-icon-box svg { width: 20px; height: 20px; stroke: #000; stroke-width: 2.5; fill: none; }
         .top-search-bar input { width: 100%; border: none; outline: none; font-size: 15px; opacity: 0; padding-right: 20px; }
         .top-search-bar:hover input, .top-search-bar:focus-within input { opacity: 1; }
+
         .controls-zoom { position: fixed; bottom: 30px; left: 25px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
         .btn-circle { width: 38px; height: 38px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; font-size: 16px; }
         .btn-add { position: fixed; bottom: 30px; right: 25px; width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transition: 0.3s; }
+
+        /* --- 필터링 --- */
         .filter-wrapper { position: fixed; top: 25px; right: 25px; z-index: 1000; display: flex; flex-direction: column; align-items: center; }
         .filter-main-btn { width: 52px; height: 52px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #eee; }
         .filter-main-btn svg { width: 20px; height: 20px; stroke: #000; stroke-width: 2.2; fill: none; }
@@ -65,6 +63,8 @@
         .filter-dot.off { opacity: 0.2; transform: scale(0.8); }
         .logout-btn { width: 52px; height: 52px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #eee; margin-top: 10px; }
         .logout-btn svg { width: 20px; height: 20px; stroke: #ff4757; stroke-width: 2.2; fill: none; }
+
+        /* --- 모달 --- */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.4); backdrop-filter: blur(10px); z-index: 2000; }
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; background: white; padding: 30px; border-radius: var(--radius); box-shadow: var(--shadow); z-index: 2001; }
         .modal.active, .modal-overlay.active { display: block; }
@@ -86,13 +86,12 @@
 </head>
 <body>
 
-<!-- 구글 로그인 화면 -->
 <div id="login-overlay">
     <div class="login-box">
         <h2>Memory Map</h2>
         <p>기록을 시작하려면 로그인하세요.</p>
         <button class="google-login-btn" onclick="handleGoogleLogin()">
-            <img class="google-icon" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/01/2x/google_signin_buttons/google-icon.png">
+            <img width="18" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/01/2x/google_signin_buttons/google-icon.png">
             Google 계정으로 로그인
         </button>
     </div>
@@ -143,9 +142,7 @@
 </div>
 
 <script>
-    // ------------------------------------------------------------------
-    // 설정값: 본인의 Firebase 설정값으로 채우세요!
-    // ------------------------------------------------------------------
+    // --- STEP 1: Firebase 설정 (본인 값으로 교체 필수) ---
     const firebaseConfig = {
         apiKey: "AIzaSyBRc5qN-elJyx9E24u3sCgBBjPHuYJGScI",
         authDomain: "mapforme-6a960.firebaseapp.com",
@@ -160,9 +157,8 @@
     const db = firebase.database();
     const auth = firebase.auth();
     const provider = new firebase.auth.GoogleAuthProvider();
-    // ------------------------------------------------------------------
 
-    // 로그인 상태 감시
+    // --- STEP 2: 로그인 로직 (무한로딩 방지) ---
     auth.onAuthStateChanged(user => {
         if (user) {
             document.getElementById('login-overlay').style.display = 'none';
@@ -172,7 +168,6 @@
         }
     });
 
-    // 구글 로그인 실행 (팝업 대신 리다이렉트 방식 사용 - 모바일 안정성 최고)
     function handleGoogleLogin() {
         auth.signInWithRedirect(provider);
     }
@@ -181,26 +176,33 @@
         if(confirm("로그아웃 하시겠습니까?")) auth.signOut();
     }
 
-    // --- 이하 기존 지도 로직 동일 ---
-    const map = L.map('map', { zoomControl: false, worldCopyJump: true, maxBounds: [[-70, -Infinity], [85, Infinity]], minZoom: 2 }).setView([25, 160], 3);
+    // --- STEP 3: 지도 설정 (태평양 중심, 남극 제외) ---
+    const map = L.map('map', { 
+        zoomControl: false, worldCopyJump: true,
+        maxBounds: [[-70, -Infinity], [85, Infinity]], minZoom: 2 
+    }).setView([25, 160], 3);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png').addTo(map);
 
     const colors = ['#ff5252', '#ffab40', '#ffd740', '#69f0ae', '#40c4ff', '#7c4dff', '#ff9ff3', '#576574', '#222f3e', '#000000'];
-    let activeFilters = new Set(colors), currentCoords = null, currentColor = colors[0], uploadedImageData = null, editingMarker = null;
-    let markers = []; 
+    let activeFilters = new Set(colors), currentCoords = null, currentColor = colors[0], uploadedImageData = null, editingMarker = null, markers = [];
 
+    // 필터 & 팔레트 생성
     const filterMenu = document.getElementById('filterMenu'), palette = document.getElementById('palette');
     colors.forEach(c => {
-        const fDot = document.createElement('div'); fDot.className = 'filter-dot'; fDot.style.background = c; fDot.onclick = () => toggleFilter(c, fDot); filterMenu.appendChild(fDot);
-        const pDot = document.createElement('div'); pDot.className = 'color-circle' + (c === currentColor ? ' active' : ''); pDot.style.background = c; pDot.setAttribute('data-color', c); pDot.onclick = () => selectColor(c, pDot); palette.appendChild(pDot);
+        const fDot = document.createElement('div'); fDot.className = 'filter-dot'; fDot.style.background = c;
+        fDot.onclick = () => { if(activeFilters.has(c)) activeFilters.delete(c); else activeFilters.add(c); fDot.classList.toggle('off'); applyFilter(); };
+        filterMenu.appendChild(fDot);
+        const pDot = document.createElement('div'); pDot.className = 'color-circle' + (c === currentColor ? ' active' : '');
+        pDot.style.background = c; pDot.setAttribute('data-color', c); pDot.onclick = () => selectColor(c, pDot);
+        palette.appendChild(pDot);
     });
 
     map.on('click', () => markers.forEach(m => { m.isSticky = false; m.closePopup(); }));
 
+    // --- STEP 4: 데이터 동기화 및 핀 로직 ---
     function loadPins() {
         db.ref('pins').on('value', (snapshot) => {
-            markers.forEach(m => map.removeLayer(m));
-            markers = [];
+            markers.forEach(m => map.removeLayer(m)); markers = [];
             const data = snapshot.val();
             for (let key in data) {
                 const p = data[key];
@@ -216,51 +218,41 @@
         });
     }
 
+    // 사진 고화질 압축 (FHD 1600px)
     document.getElementById('fileInput').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
+        const file = e.target.files[0]; if (!file) return;
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = (ev) => {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const max_size = 1600;
-                let width = img.width, height = img.height;
+                const max_size = 1600; let width = img.width, height = img.height;
                 if (width > height) { if (width > max_size) { height *= max_size / width; width = max_size; } }
                 else { if (height > max_size) { width *= max_size / height; height = max_size; } }
                 canvas.width = width; canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
                 uploadedImageData = canvas.toDataURL('image/jpeg', 0.9);
-                document.getElementById('preview-img').src = uploadedImageData;
-                document.getElementById('preview-img').style.display = "block";
+                const preview = document.getElementById('preview-img'); preview.src = uploadedImageData; preview.style.display = "block";
             };
-            img.src = event.target.result;
+            img.src = ev.target.result;
         };
         reader.readAsDataURL(file);
     });
 
     function savePin() {
-        if (!auth.currentUser) return alert("로그인이 필요합니다.");
         const city = document.getElementById('cityInput').value, memo = document.getElementById('memo').value;
         const links = { ig: document.getElementById('linkIG').value, yt: document.getElementById('linkYT').value, gmap: document.getElementById('linkGMap').value, web: document.getElementById('linkWEB').value };
         if (!currentCoords && !editingMarker) return alert("도시를 선택해주세요.");
-        const pinData = { city, memo, img: uploadedImageData, color: currentColor, links, coords: currentCoords || editingMarker.coords };
+        const pinData = { city, memo, img: uploadedImageData || "", color: currentColor, links, coords: currentCoords || editingMarker.coords };
         if (editingMarker) db.ref('pins/' + editingMarker.dbKey).set(pinData);
         else db.ref('pins').push(pinData);
         closeModal();
     }
 
-    function deletePin() {
-        if (editingMarker && confirm("삭제하시겠습니까?")) {
-            db.ref('pins/' + editingMarker.dbKey).remove();
-            closeModal();
-        }
-    }
+    function deletePin() { if (editingMarker && confirm("삭제하시겠습니까?")) { db.ref('pins/' + editingMarker.dbKey).remove(); closeModal(); } }
 
     function updatePopup(marker) {
-        const links = marker.links || {};
-        let linkHtml = '';
+        const links = marker.links || {}; let linkHtml = '';
         if(links.ig || links.yt || links.gmap || links.web) {
             linkHtml = '<div class="popup-links">';
             if(links.ig) linkHtml += `<a href="${links.ig}" class="link-item" target="_blank"><svg class="link-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>Instagram</a>`;
@@ -269,36 +261,30 @@
             if(links.web) linkHtml += `<a href="${links.web}" class="link-item" target="_blank"><svg class="link-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>Website</a>`;
             linkHtml += '</div>';
         }
-        let html = `<div class="popup-container"><div class="edit-pencil" onclick="window.triggerEdit('${marker._leaflet_id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div><span class="popup-city">${marker.city}</span><p class="popup-memo">${marker.memo || ''}</p>${marker.img ? `<img src="${marker.img}" class="popup-img">` : ''}${linkHtml}</div>`;
-        marker.bindPopup(html, { maxWidth: 220 });
+        marker.bindPopup(`<div class="popup-container"><div class="edit-pencil" onclick="window.triggerEdit('${marker._leaflet_id}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div><span class="popup-city">${marker.city}</span><p class="popup-memo">${marker.memo || ''}</p>${marker.img ? `<img src="${marker.img}" class="popup-img">` : ''}${linkHtml}</div>`, { maxWidth: 220 });
     }
 
+    // --- 유틸리티 함수 ---
     const cityInput = document.getElementById('cityInput'), autoList = document.getElementById('autocomplete');
     cityInput.addEventListener('input', debounce(async (e) => {
-        const query = e.target.value; if (query.length < 2) { autoList.style.display = 'none'; return; }
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5`);
-        const data = await res.json();
-        autoList.innerHTML = '';
-        if (data.length > 0) {
-            autoList.style.display = 'block';
-            data.forEach(item => {
-                const div = document.createElement('div'); div.className = 'autocomplete-item'; div.innerText = item.display_name;
-                div.onclick = () => { cityInput.value = item.display_name.split(',')[0]; currentCoords = [item.lat, item.lon]; autoList.style.display = 'none'; };
-                autoList.appendChild(div);
-            });
-        }
+        const q = e.target.value; if (q.length < 2) { autoList.style.display = 'none'; return; }
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=5`);
+        const data = await res.json(); autoList.innerHTML = '';
+        if (data.length > 0) { autoList.style.display = 'block'; data.forEach(item => {
+            const div = document.createElement('div'); div.className = 'autocomplete-item'; div.innerText = item.display_name;
+            div.onclick = () => { cityInput.value = item.display_name.split(',')[0]; currentCoords = [item.lat, item.lon]; autoList.style.display = 'none'; }; autoList.appendChild(div);
+        });}
     }, 300));
-    function debounce(func, timeout = 300) { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => { func.apply(this, args); }, timeout); }; }
-    function toggleFilter(color, el) { if (activeFilters.has(color)) { activeFilters.delete(color); el.classList.add('off'); } else { activeFilters.add(color); el.classList.remove('off'); } applyFilter(); }
-    function resetFilter() { activeFilters = new Set(colors); document.querySelectorAll('.filter-dot').forEach(dot => dot.classList.remove('off')); applyFilter(); }
-    function applyFilter() { markers.forEach(m => { if (activeFilters.has(m.color)) { if (!map.hasLayer(m)) m.addTo(map); } else { if (map.hasLayer(m)) map.removeLayer(m); } }); }
+    function debounce(f, t) { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => f.apply(this, args), t); }; }
+    function applyFilter() { markers.forEach(m => { if (activeFilters.has(m.color)) { if(!map.hasLayer(m)) m.addTo(map); } else { if(map.hasLayer(m)) map.removeLayer(m); } }); }
+    function resetFilter() { activeFilters = new Set(colors); document.querySelectorAll('.filter-dot').forEach(d => d.classList.remove('off')); applyFilter(); }
     function openModal(isEdit) { document.getElementById('overlay').classList.add('active'); document.getElementById('modal').classList.add('active'); if(!isEdit) { editingMarker = null; resetForm(); document.getElementById('modalTitle').innerText = "📍 핀 추가"; document.getElementById('deleteBtn').style.display = "none"; } else { document.getElementById('modalTitle').innerText = "✏️ 핀 수정"; document.getElementById('deleteBtn').style.display = "block"; } }
     function closeModal() { document.getElementById('overlay').classList.remove('active'); document.getElementById('modal').classList.remove('active'); }
     function resetForm() { document.getElementById('cityInput').value = ""; document.getElementById('memo').value = ""; document.getElementById('preview-img').style.display = 'none'; document.getElementById('fileInput').value = ""; uploadedImageData = null; currentCoords = null; document.getElementById('linkIG').value = ""; document.getElementById('linkYT').value = ""; document.getElementById('linkGMap').value = ""; document.getElementById('linkWEB').value = ""; }
     function setTab(idx) { document.getElementById('tab0').style.display = idx === 0 ? 'block' : 'none'; document.getElementById('tab1').style.display = idx === 1 ? 'block' : 'none'; document.getElementById('tab0Btn').classList.toggle('active', idx === 0); document.getElementById('tab1Btn').classList.toggle('active', idx === 1); }
-    function selectColor(color, el) { currentColor = color; document.querySelectorAll('.color-circle').forEach(c => c.classList.remove('active')); el.classList.add('active'); }
+    function selectColor(c, el) { currentColor = c; document.querySelectorAll('.color-circle').forEach(x => x.classList.remove('active')); el.classList.add('active'); }
     window.triggerEdit = (id) => { const marker = markers.find(m => m._leaflet_id == id); if(marker) { editingMarker = marker; prepareEdit(marker); openModal(true); } };
-    function prepareEdit(marker) { document.getElementById('cityInput').value = marker.city; document.getElementById('memo').value = marker.memo; if(marker.img) { document.getElementById('preview-img').src = marker.img; document.getElementById('preview-img').style.display = "block"; uploadedImageData = marker.img; } else { document.getElementById('preview-img').style.display = "none"; uploadedImageData = null; } currentCoords = marker.coords; currentColor = marker.color; document.getElementById('linkIG').value = marker.links.ig || ""; document.getElementById('linkYT').value = marker.links.yt || ""; document.getElementById('linkGMap').value = marker.links.gmap || ""; document.getElementById('linkWEB').value = marker.links.web || ""; document.querySelectorAll('.color-circle').forEach(c => c.classList.toggle('active', c.getAttribute('data-color') === currentColor)); }
+    function prepareEdit(m) { document.getElementById('cityInput').value = m.city; document.getElementById('memo').value = m.memo; if(m.img) { document.getElementById('preview-img').src = m.img; document.getElementById('preview-img').style.display = "block"; uploadedImageData = m.img; } else { document.getElementById('preview-img').style.display = "none"; uploadedImageData = null; } currentCoords = m.coords; currentColor = m.color; document.getElementById('linkIG').value = m.links.ig || ""; document.getElementById('linkYT').value = m.links.yt || ""; document.getElementById('linkGMap').value = m.links.gmap || ""; document.getElementById('linkWEB').value = m.links.web || ""; document.querySelectorAll('.color-circle').forEach(x => x.classList.toggle('active', x.getAttribute('data-color') === currentColor)); }
     function globalSearch() { const val = document.getElementById('topInput').value; if(!val) return; fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${val}&limit=1`).then(r => r.json()).then(d => { if(d.length > 0) map.setView([d[0].lat, d[0].lon], 7); }); }
 </script>
 </body>
