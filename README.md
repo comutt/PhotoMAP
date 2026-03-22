@@ -1,2 +1,0 @@
-# PhotoMAP
-maps for me
