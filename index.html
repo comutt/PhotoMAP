@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minimal Memory Map</title>
     
-    <!-- 라이브러리 주소 unpkg로 고정 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -20,13 +19,13 @@
         #map { width: 100%; height: 100vh; background: white; }
         .leaflet-tile-container { filter: grayscale(1) brightness(1.05); }
 
-        /* 로그인 오버레이 - 기본적으로 보임 */
+        /* 로그인 화면 */
         #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; }
         .login-box { width: 320px; text-align: center; padding: 40px; border-radius: 30px; box-shadow: var(--shadow); }
         .login-box h2 { font-weight: 800; margin-bottom: 10px; font-size: 24px; }
         .google-login-btn { width: 100%; padding: 14px; background: white; border: 1px solid #ddd; border-radius: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; font-size: 15px; }
 
-        /* 기존 UI 유지 */
+        /* 팝업 UI */
         .leaflet-popup-close-button { display: none !important; }
         .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: var(--shadow); padding: 0; }
         .leaflet-popup-content { margin: 0; width: 220px !important; }
@@ -40,17 +39,21 @@
         .link-icon { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.5; }
         .edit-pencil { position: absolute; top: 18px; right: 15px; cursor: pointer; width: 18px; height: 18px; z-index: 10; }
         .edit-pencil svg { fill: none; stroke: #000; stroke-width: 2; }
-        .top-search-bar { position: fixed; top: 25px; left: 25px; z-index: 1000; display: flex; align-items: center; background: white; height: 52px; width: 52px; border-radius: 26px; box-shadow: var(--shadow); overflow: hidden; transition: 0.4s; border: 1px solid #eee; }
+
+        /* 메인 UI */
+        .top-search-bar { position: fixed; top: 25px; left: 25px; z-index: 1000; display: flex; align-items: center; background: white; height: 52px; width: 52px; border-radius: 26px; box-shadow: var(--shadow); overflow: hidden; transition: 0.4s cubic-bezier(0.2, 1, 0.3, 1); border: 1px solid #eee; }
         .top-search-bar:hover, .top-search-bar:focus-within { width: 300px; }
         .search-icon-box { min-width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .search-icon-box svg { width: 20px; height: 20px; stroke: #000; stroke-width: 2.5; fill: none; }
         .top-search-bar input { width: 100%; border: none; outline: none; font-size: 15px; opacity: 0; padding-right: 20px; }
         .top-search-bar:hover input, .top-search-bar:focus-within input { opacity: 1; }
+
         .controls-zoom { position: fixed; bottom: 30px; left: 25px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
         .btn-circle { width: 38px; height: 38px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; font-size: 16px; }
         .btn-add { position: fixed; bottom: 30px; right: 25px; width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+
         .filter-wrapper { position: fixed; top: 25px; right: 25px; z-index: 1000; display: flex; flex-direction: column; align-items: center; }
-        .filter-main-btn { width: 52px; height: 52px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
+        .filter-main-btn { width: 52px; height: 52px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; border: 1px solid #eee; cursor: pointer; }
         .filter-main-btn svg { width: 20px; height: 20px; stroke: #000; stroke-width: 2.2; fill: none; }
         .filter-menu { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; background: white; border-radius: 26px; box-shadow: var(--shadow); border: 1px solid #eee; visibility: hidden; opacity: 0; transform: translateY(-10px); transition: 0.3s; margin-top: 10px; }
         .filter-wrapper:hover .filter-menu { visibility: visible; opacity: 1; transform: translateY(0); }
@@ -58,6 +61,7 @@
         .filter-dot.off { opacity: 0.2; transform: scale(0.8); }
         .logout-btn { width: 52px; height: 52px; background: white; border-radius: 50%; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #eee; margin-top: 10px; }
         .logout-btn svg { width: 20px; height: 20px; stroke: #ff4757; stroke-width: 2.2; fill: none; }
+
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.4); backdrop-filter: blur(10px); z-index: 2000; }
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; background: white; padding: 30px; border-radius: var(--radius); box-shadow: var(--shadow); z-index: 2001; }
         .modal.active, .modal-overlay.active { display: block; }
@@ -79,7 +83,6 @@
 </head>
 <body>
 
-<!-- 구글 로그인 화면 -->
 <div id="login-overlay">
     <div class="login-box">
         <h2>Memory Map</h2>
@@ -136,26 +139,30 @@
 </div>
 
 <script>
-    // --- 1. Firebase 설정 ---
+    // --- STEP 1: Firebase 설정 (본인 값 확인) ---
     const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT.firebaseapp.com",
-        databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-        projectId: "YOUR_PROJECT",
-        storageBucket: "YOUR_PROJECT.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
+        apiKey: "AIzaSyBRc5qN-elJyx9E24u3sCgBBjPHuYJGScI",
+        authDomain: "mapforme-6a960.firebaseapp.com",
+        projectId: "mapforme-6a960",
+        storageBucket: "mapforme-6a960.firebasestorage.app",
+        messagingSenderId: "1017226924243",
+        appId: "1:1017226924243:web:7fee9bd1df5d8efb93c426",
+        measurementId: "G-F3WNXS12E5"
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database(), auth = firebase.auth(), provider = new firebase.auth.GoogleAuthProvider();
 
-    // --- 2. 로그인 및 세션 고정 로직 ---
-    function hideLogin() { document.getElementById('login-overlay').style.display = 'none'; }
+    // --- STEP 2: [핵심] 로그인 로직 강화 (무한로딩 돌파) ---
+    function hideLogin() { 
+        document.getElementById('login-overlay').style.display = 'none'; 
+    }
 
+    // 세션 유지를 LOCAL로 강제 고정
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
         auth.onAuthStateChanged(user => {
             if (user) {
+                console.log("Logged in:", user.email);
                 hideLogin();
                 loadPins();
             } else {
@@ -165,11 +172,14 @@
     });
 
     function handleGoogleLogin() { auth.signInWithRedirect(provider); }
-    auth.getRedirectResult().then(res => { if(res.user) hideLogin(); }).catch(err => console.error(err));
+    auth.getRedirectResult().then(res => { if(res && res.user) hideLogin(); }).catch(e => console.error(e));
     function handleLogout() { if(confirm("로그아웃 하시겠습니까?")) auth.signOut().then(() => location.reload()); }
 
-    // --- 3. 지도 설정 ---
-    const map = L.map('map', { zoomControl: false, worldCopyJump: true, maxBounds: [[-70, -Infinity], [85, Infinity]], minZoom: 2 }).setView([25, 160], 3);
+    // --- STEP 3: 지도 설정 ---
+    const map = L.map('map', { 
+        zoomControl: false, worldCopyJump: true,
+        maxBounds: [[-70, -Infinity], [85, Infinity]], minZoom: 2 
+    }).setView([25, 160], 3);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png').addTo(map);
 
     const colors = ['#ff5252', '#ffab40', '#ffd740', '#69f0ae', '#40c4ff', '#7c4dff', '#ff9ff3', '#576574', '#222f3e', '#000000'];
@@ -187,7 +197,7 @@
 
     map.on('click', () => markers.forEach(m => { m.isSticky = false; m.closePopup(); }));
 
-    // --- 4. 데이터 및 핀 로직 ---
+    // --- STEP 4: 데이터 동기화 및 핀 로직 ---
     function loadPins() {
         db.ref('pins').on('value', (snapshot) => {
             markers.forEach(m => map.removeLayer(m)); markers = [];
